@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <memory>
 #include <algorithm>
+#include <fstream>
+#include <regex>
 
 using namespace std;
 
@@ -16,40 +18,40 @@ protected:
     int priority;
 
 public:
-    Task(const string& user_name, const string& user_deadline, int user_priority) 
+    Task( string& user_name,  string& user_deadline, int user_priority) 
         : name(user_name), deadline(user_deadline), status("Pending"), priority(user_priority) {}
 
-    virtual void display() const {
+    virtual void display()  {
         cout << "Task: " << name << ", Deadline: " << deadline << ", Status: " << status << ", Priority: " << priority << endl;
     }
 
-    void updateStatus(const string& newStatus) {
+    void updateStatus( string& newStatus) {
         status = newStatus;
     }
 
-    string getName() const {
+    string getName()  {
         return name;
     }
 
-    string getStatus() const {
+    string getStatus()  {
         return status;
     }
 
-    string getDeadline() const {
+    string getDeadline()  {
         return deadline;
     }
 
-    int getPriority() const {
+    int getPriority()  {
         return priority;
     }
 };
 
 class HighPriorityTask : public Task {
 public:
-    HighPriorityTask(const string& user_name, const string& user_deadline, int priority)
+    HighPriorityTask( string& user_name,  string& user_deadline, int priority)
         : Task(user_name, user_deadline, priority) {}
 
-    void display() const override {
+    void display()  override {
         cout << "High Priority ";
         Task::display();
     }
@@ -57,10 +59,10 @@ public:
 
 class LowPriorityTask : public Task {
 public:
-    LowPriorityTask(const string& user_name, const string& user_deadline, int priority)
+    LowPriorityTask( string& user_name,  string& user_deadline, int priority)
         : Task(user_name, user_deadline, priority) {}
 
-    void display() const override {
+    void display()  override {
         cout << "Low Priority ";
         Task::display();
     }
@@ -71,9 +73,12 @@ private:
     list<shared_ptr<Task>> tasks;
 
 public:
-    void addTask(const string& name, const string& deadline, int priority) {
+    void addTask( string& name,  string& deadline, int priority) {
         if (priority < 1 || priority > 5) {
             throw invalid_argument("Priority must be between 1 and 5.");
+        }
+        if (!isValidDate(deadline)) {
+            throw invalid_argument("Invalid date format. Please use DD-MM-YYYY.");
         }
         shared_ptr<Task> task;
         if (priority >= 4) {
@@ -85,13 +90,13 @@ public:
         sortTasks();
     }
 
-    void viewTasks() const {
-        for (const auto& task : tasks) {
+    void viewTasks()  {
+        for ( auto& task : tasks) {
             task->display();
         }
     }
 
-    void updateTaskStatus(const string& name, const string& newStatus) {
+    void updateTaskStatus( string& name,  string& newStatus) {
         for (auto& task : tasks) {
             if (task->getName() == name) {
                 task->updateStatus(newStatus);
@@ -101,8 +106,8 @@ public:
         throw runtime_error("Task not found.");
     }
 
-    void deleteTask(const string& name) {
-        auto it = find_if(tasks.begin(), tasks.end(), [&name](const shared_ptr<Task>& task) {
+    void deleteTask( string& name) {
+        auto it = find_if(tasks.begin(), tasks.end(), [&name]( shared_ptr<Task>& task) {
             return task->getName() == name;
         });
 
@@ -113,16 +118,36 @@ public:
             throw runtime_error("Task not found.");
         }
     }
+    void exportTasksToFile(string& filename) const {
+        ofstream file(filename);
+        if (!file) {
+            throw runtime_error("Unable to open file for writing.");
+        }
+        for (const auto& task : tasks) {
+            file << task->getName() << "," 
+                 << task->getDeadline() << "," 
+                 << task->getStatus() << "," 
+                 << task->getPriority() << endl;
+        }
+        file.close();
+        cout << "\nTasks exported successfully to " << filename << endl;
+    }
+
 
 private:
     void sortTasks() {
-        tasks.sort([](const shared_ptr<Task>& a, const shared_ptr<Task>& b) {
+        tasks.sort([]( shared_ptr<Task>& a,  shared_ptr<Task>& b) {
             if (a->getDeadline() == b->getDeadline()) {
                 return a->getPriority() > b->getPriority();
             }
             return a->getDeadline() < b->getDeadline();
         });
     }
+    bool isValidDate(const string& date) const {
+        regex datePattern("^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-(\\d{4})$");
+        return regex_match(date, datePattern);
+    }
+
 };
 
 int main() {
@@ -135,7 +160,8 @@ int main() {
         cout << "2. View Tasks\n";
         cout << "3. Update Task Status\n";
         cout << "4. Delete Task\n";
-        cout << "5. Exit\n ";
+        cout << "5. Export as file\n";
+        cout << "6. Exit\n";
         cout << "Enter your option: ";
         cin >> option;
 
@@ -152,7 +178,7 @@ int main() {
                 try {
                     manager.addTask(name, deadline, priority);
                     cout << "Task added successfully!" << endl;
-                } catch (const invalid_argument& e) {
+                } catch ( invalid_argument& e) {
                     cerr << "Error: " << e.what() << endl;
                 }
             } else {
@@ -167,7 +193,7 @@ int main() {
                         throw invalid_argument("Invalid task type.");
                     }
                     cout << "Task added successfully!" << endl;
-                } catch (const invalid_argument& e) {
+                } catch ( invalid_argument& e) {
                     cerr << "Error: " << e.what() << endl;
                 }
             }
@@ -185,10 +211,11 @@ int main() {
             try {
                 manager.updateTaskStatus(name, newStatus);
                 cout << "Task status updated successfully!" << endl;
-            } catch (const runtime_error& e) {
+            } catch ( runtime_error& e) {
                 cerr << "Error: " << e.what() << endl;
             }
-        } else if (option == 4) {
+        } 
+        else if (option == 4) {
             string name;
             cout << "Enter task name to delete: ";
             cin.ignore();
@@ -196,10 +223,22 @@ int main() {
 
             try {
                 manager.deleteTask(name);
-            } catch (const runtime_error& e) {
+            } catch ( runtime_error& e) {
                 cerr << "Error: " << e.what() << endl;
             }
-        } else if (option == 5) {
+        } 
+        else if (option == 5) {
+            string filename;
+            cout << "Enter filename to export tasks: ";
+            cin >> filename;
+            cout<<"Exporting file";
+            try {
+                manager.exportTasksToFile(filename);
+            } catch ( runtime_error& e) {
+                cerr << "Error: " << e.what() << endl;
+            }
+        } 
+        else if (option == 6) {
             cout << "Exiting application" << endl;
             break;
         } else {
